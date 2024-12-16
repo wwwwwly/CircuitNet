@@ -67,16 +67,19 @@ def read_lef(path, lef_dict, unit):  # 这里应该是cells.lef
                     rect_list_upper.append(float(l[4]))  # 右上角 y
 
                 elif line.lstrip().startswith("END %s\n" % pin_name):  # END o
+
                     rect_left = min(rect_list_left) * unit
                     rect_lower = min(rect_list_lower) * unit
                     rect_right = max(rect_list_right) * unit
                     rect_upper = max(rect_list_upper) * unit
+
                     lef_dict[cell_name]["pin"][pin_name] = [  # 记录引脚覆盖的最大区域
                         rect_left,
                         rect_lower,
                         rect_right,
                         rect_upper,
                     ]  # pin_rect
+
                     rect_list_left = []
                     rect_list_lower = []
                     rect_list_right = []
@@ -174,6 +177,7 @@ class ReadInnovusOutput:
 
         # The LEF/DEF we released are scaled, and it can be reverted with the scaling factor (arg.scaling).
         # Contact us with email to get the scaling factor if you need to revert the scaling.
+
         if not arg.scaling:
             self.scaling = 1
         else:
@@ -198,6 +202,7 @@ class ReadInnovusOutput:
             {}
         )  # contains information of IO pins {pin_name{'layer':layer, 'rect':rect, 'location':location, 'direction':direction}}
         self.place_instance_dict = {}  # same as route
+
         self.place_net_dict = {}
         self.place_pin_dict = {}
 
@@ -263,6 +268,7 @@ class ReadInnovusOutput:
         READ_PINS = False
         macro_map = np.zeros(self.gcell_size)
         macro_map_with_halo = np.zeros(self.gcell_size)
+
         net = ""
         for line in read_file:
             line = line.lstrip()
@@ -272,6 +278,7 @@ class ReadInnovusOutput:
                     int(die_coordinate[2]),
                     int(die_coordinate[3]),
                 )  # DIEAREA ( 0 0 ) ( 900000 900000 ) ;
+
             elif line.startswith("COMPONENTS"):
                 READ_MACROS = True
             elif line.startswith("END COMPONENTS"):
@@ -432,6 +439,7 @@ class ReadInnovusOutput:
         READ_MACROS = False
         READ_NETS = False
         READ_PINS = False
+
         net = ""
         for line in read_file:
             line = line.lstrip()
@@ -843,6 +851,7 @@ class ReadInnovusOutput:
             self.gcell_coordinate_y = []
             GCELLX = []
             GCELLY = []
+
             with open(self.route_def_path, "r") as read_file:
                 READ_GCELL = False
                 READ_MACROS = False
@@ -1012,6 +1021,7 @@ class ReadInnovusOutput:
                 pin_gcell_right = bisect.bisect_left(self.gcell_coordinate_x, pin_right)
                 pin_gcell_lower = bisect.bisect_left(self.gcell_coordinate_y, pin_lower)
                 pin_gcell_upper = bisect.bisect_left(self.gcell_coordinate_y, pin_upper)
+
                 if pin_gcell_left >= len(self.gcell_coordinate_x):
                     pin_gcell_left = len(self.gcell_coordinate_x) - 1
                 if pin_gcell_right >= len(self.gcell_coordinate_x):
@@ -1074,6 +1084,7 @@ class ReadInnovusOutput:
             pin_gcell_right = bisect.bisect_left(self.gcell_coordinate_x, pin_right)
             pin_gcell_lower = bisect.bisect_left(self.gcell_coordinate_y, pin_lower)
             pin_gcell_upper = bisect.bisect_left(self.gcell_coordinate_y, pin_upper)
+
             if pin_gcell_left >= len(self.gcell_coordinate_x):
                 pin_gcell_left = len(self.gcell_coordinate_x) - 1
             if pin_gcell_right >= len(self.gcell_coordinate_x):
@@ -1157,6 +1168,7 @@ class ReadInnovusOutput:
                     * (min(upper, y_upper) - max(lower, y_lower))
                 ) / ((right - left) * (upper - lower))
                 density[j, k] += overlap
+
         return density
 
     """
@@ -1167,6 +1179,7 @@ class ReadInnovusOutput:
         cell_density = np.zeros(self.gcell_size)
         for n in self.place_instance_dict:
             instance = self.place_instance_dict[n]
+
             cell_x_left_gcell = bisect.bisect_left(
                 self.gcell_coordinate_x, instance[1][0]
             )
@@ -1215,6 +1228,7 @@ class ReadInnovusOutput:
             pin_location_on_chip_x = []
             pin_location_on_chip_y = []
             pin_location_on_gcell = []
+
             if len(self.place_net_dict[net]) == 1:
                 continue
             for cell_pin_pair in self.place_net_dict[
@@ -1279,10 +1293,12 @@ class ReadInnovusOutput:
                         + pin_location_on_instance[0] * direction[2]
                         + pin_location_on_instance[1] * direction[3]
                     )
+
                 pin_gcell_left = bisect.bisect_left(self.gcell_coordinate_x, pin_left)
                 pin_gcell_right = bisect.bisect_left(self.gcell_coordinate_x, pin_right)
                 pin_gcell_lower = bisect.bisect_left(self.gcell_coordinate_y, pin_lower)
                 pin_gcell_upper = bisect.bisect_left(self.gcell_coordinate_y, pin_upper)
+
                 pin_location_on_gcell.append(
                     [pin_gcell_left, pin_gcell_lower, pin_gcell_right, pin_gcell_upper]
                 )
@@ -1290,6 +1306,7 @@ class ReadInnovusOutput:
                 pin_location_on_chip_x.append(
                     pin_left
                 )  # collect all the pin of the net to get net bounding box
+
                 pin_location_on_chip_x.append(pin_right)
                 pin_location_on_chip_y.append(pin_lower)
                 pin_location_on_chip_y.append(pin_upper)
@@ -1332,6 +1349,7 @@ class ReadInnovusOutput:
                     temp_pin_rudy = np.zeros(self.gcell_size)
                     temp_pin_rudy = self.compute_density(temp_pin_rudy, pin)
                     pin_RUDY += temp_pin_rudy * pin_RUDY_weight
+
                     if long_or_short == "long":
                         pin_RUDY_long += temp_pin_rudy * pin_RUDY_weight
 
@@ -1340,6 +1358,7 @@ class ReadInnovusOutput:
         self.RUDY_short = RUDY_short
         self.pin_RUDY = pin_RUDY
         self.pin_RUDY_long = pin_RUDY_long
+
         save(self.save_path, "RUDY/RUDY", self.save_name, self.RUDY)
         save(self.save_path, "RUDY/RUDY_long", self.save_name, self.RUDY_long)
         save(self.save_path, "RUDY/RUDY_short", self.save_name, self.RUDY_short)
@@ -1464,6 +1483,7 @@ class ReadInnovusOutput:
         overall_drc_density = np.zeros(self.gcell_size)
         for i in drc_density_dict:
             overall_drc_density += drc_density_dict[i]
+
         save_dir = os.path.join(save_path, "DRC_all", self.save_name)
         os.system("mkdir -p %s " % (os.path.dirname(save_dir)))
         np.save(save_dir, overall_drc_density)
@@ -1520,6 +1540,7 @@ class ReadInnovusOutput:
                                 bisect.bisect_left(time_windows, time_arrive_window[0]),
                                 bisect.bisect_left(time_windows, time_arrive_window[1]),
                             ]
+
                             for cell_name in pin_list:
                                 if cell_name not in self.tw_dict:
                                     self.tw_dict[cell_name] = []
@@ -1627,6 +1648,7 @@ class ReadInnovusOutput:
         self.power_all = np.zeros(self.gcell_size)
         power_map = np.zeros(self.gcell_size)
         for k, v in self.power_dict.items():
+
             if v[4] == "filler":
                 tw = [0]
             else:
@@ -1729,6 +1751,7 @@ class ReadInnovusOutput:
             ),
             dtype=np.int8,
         )
+
         for v in self.route_instance_dict.values():
             lef_dict = self.lef_dict_jnet[v[0]]
             instance_location_on_chip = [v[1][0], v[1][1]]

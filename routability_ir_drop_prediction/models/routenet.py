@@ -16,6 +16,7 @@ def generation_init_weights(module):
             if hasattr(m, "weight") and m.weight is not None:
                 nn.init.normal_(m.weight, 0.0, 0.02)
             if hasattr(m, "bias") and m.bias is not None:
+
                 nn.init.constant_(m.bias, 0)
 
     module.apply(init_func)
@@ -27,6 +28,7 @@ def load_state_dict(module, state_dict, strict=False, logger=None):
     err_msg = []
 
     metadata = getattr(state_dict, "_metadata", None)
+
     state_dict = state_dict.copy()
     if metadata is not None:
         state_dict._metadata = metadata
@@ -63,6 +65,7 @@ def load_state_dict(module, state_dict, strict=False, logger=None):
     if len(err_msg) > 0:
         err_msg.insert(0, "The model and loaded state dict do not match exactly\n")
         err_msg = "\n".join(err_msg)
+
         if strict:
             raise RuntimeError(err_msg)
         elif logger is not None:
@@ -120,6 +123,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.in_dim = in_dim
         self.c1 = conv(in_dim, 32)
+
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)  # 这里先用这个
         self.c2 = conv(32, 64)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)  # 这里先用这个
@@ -146,6 +150,7 @@ class Decoder(nn.Module):
         self.conv1 = conv(in_dim, 32)
         self.upc1 = upconv(32, 16)
         self.conv2 = conv(16, 16)
+
         self.upc2 = upconv(32 + 16, 4)
         self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1), nn.Sigmoid())
 
@@ -164,6 +169,7 @@ class Decoder(nn.Module):
 
 class RouteNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=1, **kwargs):  # 这里out_channels=1
+
         super().__init__()
         self.encoder = Encoder(in_dim=in_channels)
         self.decoder = Decoder(out_dim=out_channels)
@@ -175,7 +181,9 @@ class RouteNet(nn.Module):
     def init_weights(self, pretrained=None, strict=True, **kwargs):
         if isinstance(pretrained, str):
             new_dict = OrderedDict()
+
             weight = torch.load(pretrained, map_location="cpu")["state_dict"]
+
             for k in weight.keys():
                 new_dict[k] = weight[k]
             load_state_dict(self, new_dict, strict=strict, logger=None)
