@@ -17,7 +17,9 @@ class Parser(object):
         self.parser.add_argument("--pretrained", default="../pretrained/DRC.pth")
 
         self.parser.add_argument("--max_iters", default=200000)
-        self.parser.add_argument("--plot_roc", action="store_true")
+        self.parser.add_argument(
+            "--plot_roc", default="true", action="store_true"
+        )  # 如果提供plot_roc参数，值会设置为true
         self.parser.add_argument("--arg_file", default=None)
         self.parser.add_argument("--cpu", action="store_true")
         self.get_remainder()
@@ -50,7 +52,7 @@ class Parser(object):
             )
             self.parser.add_argument("--ann_file_test", default="./files/test_N28.csv")
             self.parser.add_argument("--dataset_type", default="DRCDataset")
-            self.parser.add_argument("--batch_size", default=4)
+            self.parser.add_argument("--batch_size", default=8)
             self.parser.add_argument("--aug_pipeline", default=["Flip"])
 
             self.parser.add_argument("--model_type", default="RouteNet")
