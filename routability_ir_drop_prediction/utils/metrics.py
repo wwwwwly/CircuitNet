@@ -24,6 +24,7 @@ from scipy.stats import wasserstein_distance
 from skimage.metrics import normalized_root_mse
 import math
 import utils.metrics as metrics
+import utils.utils as utils
 
 __all__ = ["psnr", "ssim", "nrms", "emd"]
 
@@ -383,6 +384,16 @@ def roc_prc(save_path):
         roc_numerator += (
             (tpr_list[i] + tpr_list[i + 1]) * (fpr_list[i + 1] - fpr_list[i]) / 2
         )
+
+    utils.save_img(
+        fpr_list,
+        tpr_list,
+        "roc.png",
+        x_axis="FPR",
+        y_axis="TPR",
+        label=f"AUC-ROC={roc_numerator}",
+        title="ROC",
+    )
 
     tpr_list, p_list = get_sorted_list(tpr_sum_List, precision_sum_List)
     x_smooth = np.linspace(0, 1, 25)

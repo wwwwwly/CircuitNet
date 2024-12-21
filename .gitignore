@@ -1,5 +1,7 @@
 routability&ir_drop_prediction/work_dir/*
 
+routability&ir_drop_prediction/images
+
 net_delay_prediction/checkpoints/*
 
 *.pyc
