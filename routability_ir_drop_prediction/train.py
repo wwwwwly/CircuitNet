@@ -145,6 +145,10 @@ def train():
                 prediction = model(input)
 
                 optimizer.zero_grad()
+                # 标签改为2值图像
+                target[target >= arg_dict["threshold"]] = 1
+                target[target < arg_dict["threshold"]] = 0
+
                 pixel_loss = loss(prediction, target)
 
                 epoch_loss += pixel_loss.item()

@@ -152,8 +152,11 @@ class Decoder(nn.Module):
         self.conv2 = conv(16, 16)
 
         self.upc2 = upconv(32 + 16, 4)
-        # self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1), nn.Sigmoid())
-        self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1))
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(4, out_dim, 3, 1, 1), nn.Sigmoid()
+        )  # original
+        # self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1)) # test 1
+        # self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1), nn.LeakyReLU()) # test 2
 
     def init_weights(self):
         generation_init_weights(self)
