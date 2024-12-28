@@ -14,7 +14,9 @@ class Parser(object):
 
         self.parser.add_argument("--save_path", default="./drc_routenet")
 
-        self.parser.add_argument("--pretrained", default="../pretrained/DRC.pth")
+        self.parser.add_argument(
+            "--pretrained", default="../pretrained/model_iters_130000_label01.pth"
+        )
 
         self.parser.add_argument("--max_iters", default=200000)
         self.parser.add_argument(

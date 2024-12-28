@@ -1,0 +1,12 @@
+no sigmoid
+===> Avg. NRMS: 0.0620
+===> Avg. SSIM: 0.9619
+with sigmoid
+===> Avg. NRMS: 0.0341
+===> Avg. SSIM: 0.9735
+leakyRelu
+===> Avg. NRMS: 0.0426
+===> Avg. SSIM: 0.9713
+label01
+===> Avg. NRMS: 0.0793
+===> Avg. SSIM: 0.9618

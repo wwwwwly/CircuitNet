@@ -12,11 +12,9 @@ def generation_init_weights(module):
         if hasattr(m, "weight") and (
             classname.find("Conv") != -1 or classname.find("Linear") != -1
         ):
-
             if hasattr(m, "weight") and m.weight is not None:
                 nn.init.normal_(m.weight, 0.0, 0.02)
             if hasattr(m, "bias") and m.bias is not None:
-
                 nn.init.constant_(m.bias, 0)
 
     module.apply(init_func)
@@ -152,10 +150,10 @@ class Decoder(nn.Module):
         self.conv2 = conv(16, 16)
 
         self.upc2 = upconv(32 + 16, 4)
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(4, out_dim, 3, 1, 1), nn.Sigmoid()
-        )  # original
-        # self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1))  # test 1 no sigmoid
+        # self.conv3 = nn.Sequential(
+        #     nn.Conv2d(4, out_dim, 3, 1, 1), nn.Sigmoid()
+        # )  # original
+        self.conv3 = nn.Sequential(nn.Conv2d(4, out_dim, 3, 1, 1))  # test 1 no sigmoid
         # self.conv3 = nn.Sequential(
         #     nn.Conv2d(4, out_dim, 3, 1, 1), nn.LeakyReLU()
         # )  # test 2

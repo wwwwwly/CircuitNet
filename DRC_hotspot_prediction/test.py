@@ -57,11 +57,10 @@ def test():
                     )
 
             if arg_dict["plot_roc"]:
-                # save_path = osp.join(
-                #     arg_dict["save_path"],
-                #     "test_result-" + arg_dict["pretrained"].split("/")[-1],
-                # )
-                save_path = osp.join(arg_dict["save_path"], "test_result")
+                save_path = osp.join(
+                    arg_dict["save_path"],
+                    "test_result-" + arg_dict["pretrained"].split("/")[-1],
+                )
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
                 file_name = osp.splitext(osp.basename(label_path[0]))[
