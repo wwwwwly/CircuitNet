@@ -5,12 +5,23 @@ img_dir = os.path.join(os.path.dirname(__file__), "..", "images")
 
 
 def save_img(
-    list_x, list_y, img_name, x_axis="x", y_axis="y", label="data", title="image"
+    list_x,
+    list_y,
+    img_name,
+    x_axis="x",
+    y_axis="y",
+    label="data",
+    title="image",
+    save_path=None,
 ):
-    if not os.path.exists(img_dir):
-        os.makedirs(img_dir)
+    if save_path == None:
+        save_path = os.path.join(img_dir, img_name)
+    else:
+        save_path = os.path.join(save_path, "images", img_name)
 
-    save_path = os.path.join(img_dir, img_name)
+    if not os.path.exists(os.path.dirname(save_path)):
+        os.makedirs(os.path.dirname(save_path))
+
     # 创建图像
     plt.figure(figsize=(6, 4))
     plt.plot(list_x, list_y, marker="o", label=label)

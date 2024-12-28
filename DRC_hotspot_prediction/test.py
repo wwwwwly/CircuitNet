@@ -15,17 +15,7 @@ from models.build_model import build_model
 from utils.configs import Parser
 
 
-def test():
-    argp = Parser()
-    arg = argp.parser.parse_args()
-    arg_dict = vars(arg)
-    if arg.arg_file is not None:
-        with open(arg.arg_file, "rt") as f:
-            arg_dict.update(json.load(f))
-
-    arg_dict["ann_file"] = arg_dict["ann_file_test"]
-    arg_dict["test_mode"] = True
-
+def test(arg_dict):
     print("===> Loading datasets")
     # Initialize dataset
     dataset = build_dataset(arg_dict)
@@ -59,7 +49,9 @@ def test():
             if arg_dict["plot_roc"]:
                 save_path = osp.join(
                     arg_dict["save_path"],
-                    "test_result-" + arg_dict["pretrained"].split("/")[-1],
+                    arg_dict["task_description"],
+                    # "test_result-" + arg_dict["pretrained"].split("/")[-1],
+                    "test_result",
                 )
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
@@ -83,4 +75,23 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
+    # 测试前需要设置pretrained的值 记得修改模型
+    argp = Parser()
+    argp.parser.add_argument(
+        "--pretrained",
+        default="./pretrained/with_leakyRelu/model_iters_190000_0.0279.pth",
+    )
+    argp.parser.add_argument("--task_description", default=None)
+    arg = argp.parser.parse_args()
+
+    arg_dict = vars(arg)
+    arg_dict["task_description"] = arg_dict["pretrained"].split("/")[2]
+
+    if arg.arg_file is not None:
+        with open(arg.arg_file, "rt") as f:
+            arg_dict.update(json.load(f))
+
+    arg_dict["ann_file"] = arg_dict["ann_file_test"]
+    arg_dict["test_mode"] = True
+
+    test(arg_dict)

@@ -10,15 +10,9 @@ sys.path.append(os.getcwd())
 class Parser(object):
     def __init__(self) -> None:
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument(
-            "--test_description", required=True, default="original routenet"
-        )
+
         self.parser.add_argument("--task", default="drc_routenet")
-
         self.parser.add_argument("--save_path", default="./drc_routenet")
-
-        self.parser.add_argument("--pretrained", default=None)
-
         self.parser.add_argument("--max_iters", default=200000)
         self.parser.add_argument(
             "--plot_roc", default="true", action="store_true"

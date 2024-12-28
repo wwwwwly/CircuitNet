@@ -308,7 +308,6 @@ def multi_process_score(out_name=None, threshold=0.0, label_path=None, save_path
     # pool = mul.Pool(int(mul.cpu_count() * (1 - psutil.cpu_percent(None) / 100.0))) # mul.cpu_count()返回了逻辑核心数
     num_processes = int(4)
     with mul.Pool(num_processes) as pool:
-
         preds = scandir(
             os.path.join(save_path, "test_result"),  # todo: 文件名
             suffix="npy",
@@ -371,7 +370,7 @@ def get_sorted_list(fpr_sum_List, tpr_sum_List):
 def roc_prc(save_path):
     # 获得了200个阈值下的 平均tpr fpr precision
     tpr_sum_List, fpr_sum_List, precision_sum_List = calculate_all(
-        os.path.join(os.getcwd(), save_path, "roc_prc.csv")
+        os.path.join(save_path, "roc_prc.csv")
     )
 
     fpr_list, tpr_list = get_sorted_list(fpr_sum_List, tpr_sum_List)
@@ -395,6 +394,7 @@ def roc_prc(save_path):
         y_axis="TPR",
         label=f"AUC-ROC={roc_numerator}",
         title="ROC",
+        save_path=save_path,
     )
 
     tpr_list, p_list = get_sorted_list(tpr_sum_List, precision_sum_List)
@@ -452,28 +452,30 @@ def build_metric(metric_name):
 def build_roc_prc_metric(
     threshold=None, dataroot=None, ann_file=None, save_path=None, **kwargs
 ):
-    if ann_file:
-        with open(ann_file, "r") as fin:  # 打开csv文件
-            for line in fin:
-                if len(line.strip().split(",")) == 2:
-                    feature, label = line.strip().split(",")
-                else:
-                    label = line.strip().split(",")[-1]
-                break  # 为啥只读一行就break
+    # if ann_file:
+    #     with open(ann_file, "r") as fin:  # 打开csv文件
+    #         for line in fin:
+    #             if len(line.strip().split(",")) == 2:
+    #                 feature, label = line.strip().split(",")
+    #             else:
+    #                 label = line.strip().split(",")[-1]
+    #             break  # 为啥只读一行就break
 
-        label_name = label.split("/")[
-            0
-        ]  # todo: label/10359-zero-riscy-b-3-c20-u0.9-m1-p8-f1.npy 为什么index是0
-    else:
-        raise FileExistsError
-    print(os.path.join(dataroot, label_name))
+    #     label_name = label.split("/")[
+    #         0
+    #     ]  # todo: label/10359-zero-riscy-b-3-c20-u0.9-m1-p8-f1.npy 为什么index是0
+    # else:
+    #     raise FileExistsError
+    # print(os.path.join(dataroot, label_name))
+
+    save_path = os.path.join(save_path, kwargs["task_description"])
     multi_process_score(
         out_name="roc_prc.csv",
         threshold=threshold,
         label_path=os.path.join(
-            dataroot, label_name
+            dataroot, "label"
         ),  # ./training_set/DRC/label 反而歪打正着了，后面确实需要这个目录，所以前面是多此一举？
-        save_path=os.path.join(".", save_path),
+        save_path=save_path,
     )
 
     return roc_prc(save_path)

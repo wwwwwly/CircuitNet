@@ -17,4 +17,4 @@ feature_extraction/LEF/circuitnet.lef
 
 routability_ir_drop_prediction/drc_routenet
 training_set/
-
+DRC_hotspot_prediction/drc_routenet

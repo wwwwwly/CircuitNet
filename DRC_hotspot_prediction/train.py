@@ -15,7 +15,7 @@ import sys, os, subprocess
 from pathlib import Path
 
 
-def checkpoint(model, epoch, loss,save_path):
+def checkpoint(model, epoch, loss, save_path):
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     model_out_path = f"./{save_path}/model_iters_{epoch}_{loss}.pth"
@@ -85,19 +85,7 @@ class CosineRestartLr(object):
             ]
 
 
-def train():
-    argp = Parser()
-    arg = argp.parser.parse_args()
-    arg_dict = vars(arg)
-    if arg.arg_file is not None:
-        with open(arg.arg_file, "rt") as f:
-            arg_dict.update(json.load(f))
-
-    if not os.path.exists(arg_dict["save_path"]):
-        os.makedirs(arg_dict["save_path"])
-    with open(os.path.join(arg_dict["save_path"], "arg.json"), "wt") as f:
-        json.dump(arg_dict, f, indent=4)
-
+def train(arg_dict):
     arg_dict["ann_file"] = arg_dict["ann_file_train"]
     arg_dict["test_mode"] = False
 
@@ -168,15 +156,42 @@ def train():
         )
         print(log_message)
 
-        log_file_path = Path(f"{arg_dict["test_description"]}_training_log.txt")
+        log_file_path = (
+            Path(arg_dict["save_path"])
+            / f"{arg_dict['task_description']}_training_log.txt"
+        )
         log_file_path.touch(exist_ok=True)
         with log_file_path.open("a") as log_file:
             log_file.write(log_message + "\n")
 
         if iter_num % save_freq == 0:
-            checkpoint(model, iter_num, loss, arg_dict["save_path"]+f"./{arg_dict['test_description']}")
+            checkpoint(
+                model,
+                iter_num,
+                epoch_loss / print_freq,
+                arg_dict["save_path"] + f"/{arg_dict['task_description']}",
+            )
         epoch_loss = 0
 
 
 if __name__ == "__main__":
-    train()
+    argp = Parser()
+    argp.parser.add_argument("--task_description", required=True)
+
+    arg = argp.parser.parse_args()
+
+    arg_dict = vars(arg)
+
+    if arg.arg_file is not None:
+        with open(arg.arg_file, "rt") as f:
+            arg_dict.update(json.load(f))
+
+    if not os.path.exists(arg_dict["save_path"]):
+        os.makedirs(arg_dict["save_path"])
+    with open(
+        os.path.join(arg_dict["save_path"], arg_dict["task_description"], "arg.json"),
+        "wt",
+    ) as f:
+        json.dump(arg_dict, f, indent=4)
+
+    train(arg_dict)
