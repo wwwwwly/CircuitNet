@@ -12,7 +12,7 @@ from tqdm import tqdm
 from datasets.build_dataset import build_dataset
 from utils.metrics import build_metric, build_roc_prc_metric
 from models.build_model import build_model
-from utils.configs import Parser
+from utils.configs import TestParser
 
 
 def test(arg_dict):
@@ -76,13 +76,7 @@ def test(arg_dict):
 
 if __name__ == "__main__":
     # 测试前需要设置pretrained的值 记得修改模型
-    argp = Parser()
-    argp.parser.add_argument(
-        "--pretrained",
-        default="./pretrained/with_leakyRelu/model_iters_190000_0.0279.pth",
-    )
-    argp.parser.add_argument("--task_description", default=None)
-
+    argp = TestParser()
     arg = argp.parser.parse_args()
 
     arg_dict = vars(arg)

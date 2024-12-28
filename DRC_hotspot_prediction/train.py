@@ -9,7 +9,7 @@ from tqdm import tqdm
 from datasets.build_dataset import build_dataset
 from utils.losses import build_loss
 from models.build_model import build_model
-from utils.configs import Parser
+from utils.configs import TrainParser
 from math import cos, pi
 import sys, os, subprocess
 from pathlib import Path
@@ -175,11 +175,8 @@ def train(arg_dict):
 
 
 if __name__ == "__main__":
-    argp = Parser()
-    argp.parser.add_argument("--task_description", required=True)
-
+    argp = TrainParser()
     arg = argp.parser.parse_args()
-
     arg_dict = vars(arg)
 
     if arg.arg_file is not None:

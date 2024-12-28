@@ -43,3 +43,19 @@ class Parser(object):
 
         else:
             raise ValueError
+
+
+class TrainParser(Parser):
+    def __init__(self):
+        super().__init__()
+        self.parser.add_argument("--task_description", required=True)
+
+
+class TestParser(Parser):
+    def __init__(self):
+        super().__init__()
+        self.parser.add_argument("--task_description", default=None)
+        self.parser.add_argument(
+            "--pretrained",
+            default="./pretrained/original/DRC.pth",
+        )
