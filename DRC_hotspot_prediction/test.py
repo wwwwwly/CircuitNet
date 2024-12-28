@@ -82,6 +82,7 @@ if __name__ == "__main__":
         default="./pretrained/with_leakyRelu/model_iters_190000_0.0279.pth",
     )
     argp.parser.add_argument("--task_description", default=None)
+
     arg = argp.parser.parse_args()
 
     arg_dict = vars(arg)
