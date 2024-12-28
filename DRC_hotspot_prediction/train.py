@@ -86,9 +86,6 @@ class CosineRestartLr(object):
 
 
 def train(arg_dict):
-    arg_dict["ann_file"] = arg_dict["ann_file_train"]
-    arg_dict["test_mode"] = False
-
     print("===> Loading datasets")
     # Initialize dataset
     dataset = build_dataset(arg_dict)
@@ -176,19 +173,23 @@ def train(arg_dict):
 
 if __name__ == "__main__":
     argp = TrainParser()
-    arg = argp.parser.parse_args()
+    arg = argp.parse_args()
     arg_dict = vars(arg)
 
     if arg.arg_file is not None:
         with open(arg.arg_file, "rt") as f:
             arg_dict.update(json.load(f))
 
-    if not os.path.exists(arg_dict["save_path"]):
-        os.makedirs(arg_dict["save_path"])
+    save_dir = os.path.join(arg_dict["save_path"], arg_dict["task_description"])
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     with open(
-        os.path.join(arg_dict["save_path"], arg_dict["task_description"], "arg.json"),
+        os.path.join(save_dir, "arg.json"),
         "wt",
     ) as f:
         json.dump(arg_dict, f, indent=4)
+
+    arg_dict["ann_file"] = arg_dict["ann_file_train"]
+    arg_dict["test_mode"] = False
 
     train(arg_dict)

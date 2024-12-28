@@ -77,7 +77,7 @@ def test(arg_dict):
 if __name__ == "__main__":
     # 测试前需要设置pretrained的值 记得修改模型
     argp = TestParser()
-    arg = argp.parser.parse_args()
+    arg = argp.parse_args()
 
     arg_dict = vars(arg)
     arg_dict["task_description"] = arg_dict["pretrained"].split("/")[2]
