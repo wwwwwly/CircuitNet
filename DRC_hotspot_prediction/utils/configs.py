@@ -52,7 +52,7 @@ class TrainParser(Parser):
         )
 
     def parse_args(self):
-        args = self.parser.parse_args()
+        args, unknown_args = self.parser.parse_known_args()
         self.add_task_specific_arguments(args.task)
 
         return self.parser.parse_args()
@@ -68,7 +68,7 @@ class TestParser(Parser):
         )
 
     def parse_args(self):
-        args = self.parser.parse_args()
+        args, unknown_args = self.parser.parse_known_args()
         self.add_task_specific_arguments(args.task)
 
         return self.parser.parse_args()

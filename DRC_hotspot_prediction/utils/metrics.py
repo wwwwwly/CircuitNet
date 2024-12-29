@@ -452,29 +452,11 @@ def build_metric(metric_name):
 def build_roc_prc_metric(
     threshold=None, dataroot=None, ann_file=None, save_path=None, **kwargs
 ):
-    # if ann_file:
-    #     with open(ann_file, "r") as fin:  # 打开csv文件
-    #         for line in fin:
-    #             if len(line.strip().split(",")) == 2:
-    #                 feature, label = line.strip().split(",")
-    #             else:
-    #                 label = line.strip().split(",")[-1]
-    #             break  # 为啥只读一行就break
-
-    #     label_name = label.split("/")[
-    #         0
-    #     ]  # todo: label/10359-zero-riscy-b-3-c20-u0.9-m1-p8-f1.npy 为什么index是0
-    # else:
-    #     raise FileExistsError
-    # print(os.path.join(dataroot, label_name))
-
     save_path = os.path.join(save_path, kwargs["task_description"])
     multi_process_score(
         out_name="roc_prc.csv",
         threshold=threshold,
-        label_path=os.path.join(
-            dataroot, "label"
-        ),  # ./training_set/DRC/label 反而歪打正着了，后面确实需要这个目录，所以前面是多此一举？
+        label_path=os.path.join(dataroot, "label"),  # ./training_set/DRC/label
         save_path=save_path,
     )
 

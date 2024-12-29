@@ -155,6 +155,7 @@ def train(arg_dict):
 
         log_file_path = (
             Path(arg_dict["save_path"])
+            / Path(arg_dict["task_description"])
             / f"{arg_dict['task_description']}_training_log.txt"
         )
         log_file_path.touch(exist_ok=True)
