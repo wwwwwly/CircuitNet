@@ -26,17 +26,9 @@ import math
 import utils.metrics as metrics
 import utils.utils as utils
 
-__all__ = ["psnr", "ssim", "nrms", "emd"]
+__all__ = ["psnr", "ssim", "nrms", "emd", "mse"]
 
-
-def confusion_matrix(label, pred):
-    label, pred = label.float(), pred.float()
-    tp = torch.logical_and(label, pred).count_nonzero().item()
-    tn = torch.logical_and(1 - label, 1 - pred).count_nonzero().item()
-    fp = torch.logical_and(1 - label, pred).count_nonzero().item()
-    fn = torch.logical_and(label, 1 - pred).count_nonzero().item()
-
-    return tn, fp, fn, tp
+# ------------ tool functions ------------
 
 
 def mkdir_or_exist(dir_name, mode=0o777):
@@ -44,6 +36,55 @@ def mkdir_or_exist(dir_name, mode=0o777):
         return
     dir_name = osp.expanduser(dir_name)  # 处理 ~ 符号，转化为用户当前目录
     os.makedirs(dir_name, mode=mode, exist_ok=True)
+
+
+def tensor2img(tensor, out_type=np.uint8, min_max=(0, 1)):
+    if not (
+        torch.is_tensor(tensor)
+        or (isinstance(tensor, list) and all(torch.is_tensor(t) for t in tensor))
+    ):
+        raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")
+
+    if torch.is_tensor(tensor):
+        tensor = [tensor]
+    result = []
+    for _tensor in tensor:
+        _tensor = _tensor.squeeze(0).squeeze(0)
+        _tensor = _tensor.float().detach().cpu().clamp_(*min_max)
+        _tensor = (_tensor - min_max[0]) / (min_max[1] - min_max[0])
+        n_dim = _tensor.dim()
+
+        if n_dim == 3: # todo:目前做的任务中 b和c都是1，所以这里没用到
+            img_np = _tensor.numpy()
+            img_np = np.transpose(img_np[:, :, :], (2, 0, 1)) #todo: 这里是否由 C,H,W 变成了 W,C,H，而本意是变成 C,H,W
+            # img_np = np.transpose(img_np[[2, 1, 0], :, :], (1, 2, 0))
+        elif n_dim == 2:
+            img_np = _tensor.numpy()[..., None]
+        else:
+            raise ValueError(
+                "Only support 4D, 3D or 2D tensor. "
+                f"But received with dimension: {n_dim}"
+            )
+        if out_type == np.uint8:
+            img_np = (img_np * 255.0).round()
+        img_np = img_np.astype(out_type)
+        result.append(img_np)
+    result = result[0] if len(result) == 1 else result
+    return result
+
+
+def get_sorted_list(fpr_sum_List, tpr_sum_List):
+    fpr_list = []
+    tpr_list = []
+    for i, j in zip(fpr_sum_List, tpr_sum_List):
+        if i not in fpr_list:  # todo: 为什么去重？ 单纯为了绘图？
+            fpr_list.append(i)
+            tpr_list.append(j)
+
+    fpr_list.reverse()
+    tpr_list.reverse()
+    fpr_list, tpr_list = zip(*sorted(zip(fpr_list, tpr_list)))  # 默认for升序
+    return fpr_list, tpr_list
 
 
 def input_converter(apply_to=None):
@@ -68,80 +109,51 @@ def input_converter(apply_to=None):
     return input_converter_wrapper
 
 
-@input_converter(apply_to=("img1", "img2"))
-def psnr(img1, img2, crop_border=0):  # 峰值信噪比（PSNR，Peak Signal-to-Noise Ratio）
-    assert (
-        img1.shape == img2.shape
-    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
-
-    img1, img2 = img1.astype(np.float32), img2.astype(np.float32)
-    if crop_border != 0:
-        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
-        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
-
-    mse_value = np.mean((img1 - img2) ** 2)
-    if mse_value == 0:
-        return float("inf")
-    return 20.0 * np.log10(255.0 / np.sqrt(mse_value))
-
-
-def _ssim(img1, img2):
-    C1 = (0.01 * 255) ** 2
-    C2 = (0.03 * 255) ** 2
-
-    img1 = img1.astype(np.float64)
-    img2 = img2.astype(np.float64)
-    kernel = cv2.getGaussianKernel(11, 1.5)
-    window = np.outer(kernel, kernel.transpose())
-
-    mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]
-    mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
-    mu1_sq = mu1**2
-    mu2_sq = mu2**2
-    mu1_mu2 = mu1 * mu2
-    sigma1_sq = cv2.filter2D(img1**2, -1, window)[5:-5, 5:-5] - mu1_sq
-    sigma2_sq = cv2.filter2D(img2**2, -1, window)[5:-5, 5:-5] - mu2_sq
-    sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
-
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / (
-        (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
+def build_roc_prc_metric(
+    threshold=None, dataroot=None, ann_file=None, save_path=None, **kwargs
+):
+    save_path = os.path.join(save_path, kwargs["task_description"])
+    multi_process_score(
+        out_name="roc_prc.csv",
+        threshold=threshold,
+        label_path=os.path.join(dataroot, "label"),  # ./training_set/DRC/label
+        save_path=save_path,
     )
-    return ssim_map.mean()
+
+    return roc_prc(save_path)
 
 
-@input_converter(
-    apply_to=("img1", "img2")
-)  # 结构相似性指数（SSIM,Structural Similarity Index Measurement）
-def ssim(img1, img2, crop_border=0):
-    assert (
-        img1.shape == img2.shape
-    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
-    if crop_border != 0:
-        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
-        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
-
-    ssims = []
-    for i in range(img1.shape[2]):
-        ssims.append(_ssim(img1[..., i], img2[..., i]))
-    return np.array(ssims).mean()
+def build_metric(metric_name):
+    return metrics.__dict__[metric_name.lower()]
 
 
-@input_converter(apply_to=("img1", "img2"))
-def nrms(img1, img2, crop_border=0):  # NRMS (Normalized Root Mean Squared Error)
-    assert (
-        img1.shape == img2.shape
-    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
+# ------------ calculation functions ------------
 
-    if crop_border != 0:
-        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
-        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
 
-    nrmse_value = normalized_root_mse(
-        img1.flatten(), img2.flatten(), normalization="min-max"
-    )
-    if math.isinf(nrmse_value):
-        return 0.05
-    return nrmse_value
+def confusion_matrix(label, pred):
+    label, pred = label.float(), pred.float()
+    tp = torch.logical_and(label, pred).count_nonzero().item()
+    tn = torch.logical_and(1 - label, 1 - pred).count_nonzero().item()
+    fp = torch.logical_and(1 - label, pred).count_nonzero().item()
+    fn = torch.logical_and(label, 1 - pred).count_nonzero().item()
+
+    return tn, fp, fn, tp
+
+
+def tpr(tp, fn):  # 召回率/查全率
+    return tp / (tp + fn)
+
+
+def fpr(fp, tn):  #
+    return fp / (fp + tn)
+
+
+def precision(tp, fp):  # 精确率/查准率
+    return tp / (tp + fp)
+
+
+def accuracy(tp, tn, fp, fn):  # 准确率
+    return (tp + tn) / (tp + fp + tn + fn)
 
 
 def get_histogram(img):
@@ -164,42 +176,6 @@ def normalize_exposure(img):
         for j in range(0, width):
             normalized[i, j] = sk[img[i, j]]
     return normalized.astype(int)
-
-
-@input_converter(apply_to=("img1", "img2"))
-def emd(img1, img2, crop_border=0):  # 动土距离 EMD (Earth Mover's Distance)
-    assert (
-        img1.shape == img2.shape
-    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
-
-    if crop_border != 0:
-        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
-        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
-
-    # change here
-    img1 = normalize_exposure(np.squeeze(img1, axis=2))
-    img2 = normalize_exposure(np.squeeze(img2, axis=2))
-    hist_1 = get_histogram(img1)
-    hist_2 = get_histogram(img2)
-
-    emd_value = wasserstein_distance(hist_1, hist_2)
-    return emd_value
-
-
-def tpr(tp, fn):  # 召回率/查全率
-    return tp / (tp + fn)
-
-
-def fpr(fp, tn):  #
-    return fp / (fp + tn)
-
-
-def precision(tp, fp):  # 精确率/查准率
-    return tp / (tp + fp)
-
-
-def accuracy(tp, tn, fp, fn):  # 准确率
-    return (tp + tn) / (tp + fp + tn + fn)
 
 
 def calculate_all(csv_path):
@@ -306,7 +282,7 @@ def multi_process_score(out_name=None, threshold=0.0, label_path=None, save_path
     temp_path = f"./{suid}"
 
     # pool = mul.Pool(int(mul.cpu_count() * (1 - psutil.cpu_percent(None) / 100.0))) # mul.cpu_count()返回了逻辑核心数
-    num_processes = int(4)
+    num_processes = int(4)  # todo: 泛用性
     with mul.Pool(num_processes) as pool:
         preds = scandir(
             os.path.join(save_path, "test_result"),  # todo: 文件名
@@ -352,18 +328,115 @@ def multi_process_score(out_name=None, threshold=0.0, label_path=None, save_path
         shutil.rmtree(temp_path)
 
 
-def get_sorted_list(fpr_sum_List, tpr_sum_List):
-    fpr_list = []
-    tpr_list = []
-    for i, j in zip(fpr_sum_List, tpr_sum_List):
-        if i not in fpr_list:  # todo: 为什么去重？ 单纯为了绘图？
-            fpr_list.append(i)
-            tpr_list.append(j)
+# ------------ metric functions ------------
+@input_converter(apply_to=("img1", "img2"))
+def psnr(img1, img2, crop_border=0):  # 峰值信噪比（PSNR，Peak Signal-to-Noise Ratio）
+    assert (
+        img1.shape == img2.shape
+    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
 
-    fpr_list.reverse()
-    tpr_list.reverse()
-    fpr_list, tpr_list = zip(*sorted(zip(fpr_list, tpr_list)))  # 默认for升序
-    return fpr_list, tpr_list
+    img1, img2 = img1.astype(np.float32), img2.astype(np.float32)
+    if crop_border != 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
+
+    mse_value = np.mean((img1 - img2) ** 2)
+    if mse_value == 0:
+        return float("inf")
+    return 20.0 * np.log10(255.0 / np.sqrt(mse_value))
+
+
+def _ssim(img1, img2):
+    C1 = (0.01 * 255) ** 2
+    C2 = (0.03 * 255) ** 2
+
+    img1 = img1.astype(np.float64)
+    img2 = img2.astype(np.float64)
+    kernel = cv2.getGaussianKernel(11, 1.5)
+    window = np.outer(kernel, kernel.transpose())
+
+    mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]
+    mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
+    mu1_sq = mu1**2
+    mu2_sq = mu2**2
+    mu1_mu2 = mu1 * mu2
+    sigma1_sq = cv2.filter2D(img1**2, -1, window)[5:-5, 5:-5] - mu1_sq
+    sigma2_sq = cv2.filter2D(img2**2, -1, window)[5:-5, 5:-5] - mu2_sq
+    sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
+
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / (
+        (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
+    )
+    return ssim_map.mean()
+
+
+@input_converter(
+    apply_to=("img1", "img2")
+)  # 结构相似性指数（SSIM,Structural Similarity Index Measurement）
+def ssim(img1, img2, crop_border=0):
+    assert (
+        img1.shape == img2.shape
+    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
+    if crop_border != 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
+
+    ssims = []
+    for i in range(img1.shape[2]):
+        ssims.append(_ssim(img1[..., i], img2[..., i]))
+    return np.array(ssims).mean()
+
+
+@input_converter(apply_to=("img1", "img2"))
+def mse(img1, img2, crop_border=0):  # MSE (Mean Squared Error)
+    assert (
+        img1.shape == img2.shape
+    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
+
+    if crop_border != 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
+
+    mse_value = np.mean((img1 - img2) ** 2)
+    return mse_value
+
+
+@input_converter(apply_to=("img1", "img2"))
+def nrms(img1, img2, crop_border=0):  # NRMS (Normalized Root Mean Squared Error)
+    assert (
+        img1.shape == img2.shape
+    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
+
+    if crop_border != 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
+
+    nrmse_value = normalized_root_mse(
+        img1.flatten(), img2.flatten(), normalization="min-max"
+    )
+    if math.isinf(nrmse_value):
+        return 0.05
+    return nrmse_value
+
+
+@input_converter(apply_to=("img1", "img2"))
+def emd(img1, img2, crop_border=0):  # 动土距离 EMD (Earth Mover's Distance)
+    assert (
+        img1.shape == img2.shape
+    ), f"Image shapes are different: {img1.shape}, {img2.shape}."
+
+    if crop_border != 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, None]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, None]
+
+    # change here
+    img1 = normalize_exposure(np.squeeze(img1, axis=2))
+    img2 = normalize_exposure(np.squeeze(img2, axis=2))
+    hist_1 = get_histogram(img1)
+    hist_2 = get_histogram(img2)
+
+    emd_value = wasserstein_distance(hist_1, hist_2)
+    return emd_value
 
 
 # 返回AUC-ROC和AUC-PR
@@ -408,56 +481,3 @@ def roc_prc(save_path):
         )
 
     return roc_numerator, prc_numerator
-
-
-def tensor2img(tensor, out_type=np.uint8, min_max=(0, 1)):
-    if not (
-        torch.is_tensor(tensor)
-        or (isinstance(tensor, list) and all(torch.is_tensor(t) for t in tensor))
-    ):
-        raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")
-
-    if torch.is_tensor(tensor):
-        tensor = [tensor]
-    result = []
-    for _tensor in tensor:
-        _tensor = _tensor.squeeze(0).squeeze(0)
-        _tensor = _tensor.float().detach().cpu().clamp_(*min_max)
-        _tensor = (_tensor - min_max[0]) / (min_max[1] - min_max[0])
-        n_dim = _tensor.dim()
-
-        if n_dim == 3:
-            img_np = _tensor.numpy()
-            img_np = np.transpose(img_np[:, :, :], (2, 0, 1))
-            # img_np = np.transpose(img_np[[2, 1, 0], :, :], (1, 2, 0))
-        elif n_dim == 2:
-            img_np = _tensor.numpy()[..., None]
-        else:
-            raise ValueError(
-                "Only support 4D, 3D or 2D tensor. "
-                f"But received with dimension: {n_dim}"
-            )
-        if out_type == np.uint8:
-            img_np = (img_np * 255.0).round()
-        img_np = img_np.astype(out_type)
-        result.append(img_np)
-    result = result[0] if len(result) == 1 else result
-    return result
-
-
-def build_metric(metric_name):
-    return metrics.__dict__[metric_name.lower()]
-
-
-def build_roc_prc_metric(
-    threshold=None, dataroot=None, ann_file=None, save_path=None, **kwargs
-):
-    save_path = os.path.join(save_path, kwargs["task_description"])
-    multi_process_score(
-        out_name="roc_prc.csv",
-        threshold=threshold,
-        label_path=os.path.join(dataroot, "label"),  # ./training_set/DRC/label
-        save_path=save_path,
-    )
-
-    return roc_prc(save_path)

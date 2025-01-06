@@ -13,6 +13,8 @@ from datasets.build_dataset import build_dataset
 from utils.metrics import build_metric, build_roc_prc_metric
 from models.build_model import build_model
 from utils.configs import TestParser
+from pathlib import Path
+from datetime import datetime
 
 
 def test(arg_dict):
@@ -65,17 +67,31 @@ def test(arg_dict):
 
             bar.update(1)
 
-    for metric, avg_metric in avg_metrics.items():
-        print("===> Avg. {}: {:.4f}".format(metric, avg_metric / len(dataset)))
+    log_file_path = (
+        Path(arg_dict["save_path"])
+        / Path(arg_dict["task_description"])
+        / r"images/metrics_log.txt"
+    )
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    log_file_path.touch(exist_ok=True)
+    with log_file_path.open("a") as log_file:
+        for metric, avg_metric in avg_metrics.items():
+            metric_msg = "===> Avg. {}: {:.4f}".format(
+                metric, avg_metric / len(dataset)
+            )
+            print(metric_msg)
+            current_time = datetime.now()
+            formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+            log_file.write(f"{formatted_time} - {metric_msg}\n")
 
     # eval roc&prc
-    if arg_dict["plot_roc"]:
-        roc_metric, _ = build_roc_prc_metric(**arg_dict)
-        print("\n===> AUC of ROC. {:.4f}".format(roc_metric))
+    # if arg_dict["plot_roc"]:
+    #     roc_metric, _ = build_roc_prc_metric(**arg_dict)
+    #     print("\n===> AUC of ROC. {:.4f}".format(roc_metric))
 
 
 if __name__ == "__main__":
-    # 测试前需要设置pretrained的值 记得修改模型
+    # 测试前需要设置pretrained的值 如果模型不同记得修改模型 
     argp = TestParser()
     arg = argp.parse_args()
 

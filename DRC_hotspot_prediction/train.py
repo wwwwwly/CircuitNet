@@ -88,7 +88,7 @@ class CosineRestartLr(object):
 def train(arg_dict):
     print("===> Loading datasets")
     # Initialize dataset
-    dataset = build_dataset(arg_dict)
+    train_set = build_dataset(arg_dict)
 
     print("===> Building model")
     # Initialize model parameters
@@ -111,14 +111,22 @@ def train(arg_dict):
     cosine_lr = CosineRestartLr(arg_dict["lr"], [arg_dict["max_iters"]], [1], 1e-7)
     cosine_lr.set_init_lr(optimizer)
 
-    epoch_loss = 0
+    # build validation set
+    arg_dict["ann_file"] = arg_dict["ann_file_val"]
+    arg_dict["test_mode"] = True
+    val_set = build_dataset(arg_dict)
+    
+    train_epoch_loss = 0
+    val_epoch_loss = 0
     iter_num = 0
     print_freq = 100
     save_freq = 10000
 
     while iter_num < arg_dict["max_iters"]:
+        #-----------------Training-----------------#
+        model.train()
         with tqdm(total=print_freq) as bar:
-            for feature, label, _ in dataset:
+            for feature, label, _ in train_set:
                 if arg_dict["cpu"]:
                     input, target = feature, label
                 else:
@@ -136,9 +144,9 @@ def train(arg_dict):
                 # target[target < arg_dict["threshold"]] = 0
 
                 pixel_loss = loss(prediction, target)
-
-                epoch_loss += pixel_loss.item()
+                train_epoch_loss += pixel_loss.item()
                 pixel_loss.backward()
+
                 optimizer.step()
 
                 iter_num += 1
@@ -147,9 +155,31 @@ def train(arg_dict):
 
                 if iter_num % print_freq == 0:
                     break
+        
+        #-----------------Validation-----------------#
+        model.eval()
+        with tqdm(total=print_freq) as bar:
+            with torch.no_grad():
+                tmp_iter_num=iter_num
+                for feature, label, _ in val_set:
+                    if arg_dict["cpu"]:
+                        input, target = feature, label
+                    else:
+                        input, target = feature.cuda(), label.cuda()
 
-        log_message = "===> Iters[{}]({}/{}): Loss: {:.4f}".format(
-            iter_num, iter_num, arg_dict["max_iters"], epoch_loss / print_freq
+                    prediction = model(input)
+                    pixel_loss = loss(prediction, target)
+                    val_epoch_loss += pixel_loss.item()
+
+                    tmp_iter_num += 1
+
+                    bar.update(1)
+
+                    if tmp_iter_num % print_freq == 0:
+                        break
+
+        log_message = "===> Iters[{}]({}/{}): Train Loss: {:.4f}\t\tValidation Loss: {:4f}".format(
+            iter_num, iter_num, arg_dict["max_iters"], train_epoch_loss / print_freq, val_epoch_loss / print_freq
         )
         print(log_message)
 
@@ -163,13 +193,11 @@ def train(arg_dict):
             log_file.write(log_message + "\n")
 
         if iter_num % save_freq == 0:
-            checkpoint(
-                model,
-                iter_num,
-                epoch_loss / print_freq,
-                arg_dict["save_path"] + f"/{arg_dict['task_description']}",
-            )
-        epoch_loss = 0
+            checkpoint(model,iter_num, val_epoch_loss / print_freq,
+                       arg_dict["save_path"] + f"/{arg_dict['task_description']}")
+            
+        train_epoch_loss = 0
+        val_epoch_loss = 0
 
 
 if __name__ == "__main__":

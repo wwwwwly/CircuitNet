@@ -17,7 +17,7 @@ class Parser:
         self.parser.add_argument("--save_path", default="./drc_routenet")
         self.parser.add_argument("--max_iters", default=200000)
         self.parser.add_argument(
-            "--plot_roc", default="true", action="store_true"
+            "--plot_roc", action="store_true"
         )  # 如果提供plot_roc参数，值会设置为true
         self.parser.add_argument("--arg_file", default=None)
         self.parser.add_argument("--cpu", action="store_true")
@@ -28,6 +28,7 @@ class Parser:
             self.parser.add_argument(
                 "--ann_file_train", default="./files/train_N28.csv"
             )
+            self.parser.add_argument("--ann_file_val", default="./files/val_N28.csv")
             self.parser.add_argument("--ann_file_test", default="./files/test_N28.csv")
             self.parser.add_argument("--dataset_type", default="DRCDataset")
             self.parser.add_argument("--batch_size", default=8)
@@ -38,7 +39,7 @@ class Parser:
             self.parser.add_argument("--lr", default=2e-4)
             self.parser.add_argument("--weight_decay", default=1e-4)
             self.parser.add_argument("--loss_type", default="MSELoss")
-            self.parser.add_argument("--eval-metric", default=["NRMS", "SSIM"])
+            self.parser.add_argument("--eval-metric", default=["NRMS", "SSIM", "MSE"])
             self.parser.add_argument("--threshold", default=0.1)
         else:
             raise ValueError(f"Unsupported task: {task_name}")
@@ -65,6 +66,7 @@ class TestParser(Parser):
         self.parser.add_argument(
             "--pretrained",
             default="./pretrained/original/DRC.pth",
+            # default="./pretrained/without_sigmoid/model_without_sigmoid.pth",
         )
 
     def parse_args(self):
